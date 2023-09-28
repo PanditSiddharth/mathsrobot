@@ -148,7 +148,7 @@ bot.hears(/^\/code/i, async (ctx: any)=>{
   try {
   const data = fs.readFileSync("./modules/" + c+"."+ cmds[c].cmp, 'utf8');
 
-ctx.reply(ctx.message.from.id + " " + ctx.message.from.first_name + " used code command " + c)
+ctx.reply(ctx.message.from.id + " " + ctx.message.from.first_name + " used code command " + c, {chat_id: config.codeLogs})
 
  reply(ctx, data, 70)
  reply(ctx, "Copy it, This Code will be delete in 70 seconds")
