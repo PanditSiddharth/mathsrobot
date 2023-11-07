@@ -56,6 +56,8 @@ addScene.on("message", async (ctx: any) => {
     } else {
 
       try {
+        if (jsonn.key)
+          jsonn.key = jsonn.key.split(" ");
         jsonn = jsonn.replace(/\u00A0/mg, ' ')
         let jn: any = JSON.parse(jsonn)
         jn.userId = ctx.message.from.id;
