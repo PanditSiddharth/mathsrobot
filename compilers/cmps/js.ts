@@ -15,6 +15,7 @@ const ctxemitter = new EventEmitter();
 let ErrorMes: any = "Error: \n"
 let buff = false
 let firstlistener = true
+let countpp = 0;
 interface Opt {
   code?: any; ter?: Boolean; onlyTerminate?: boolean
 }
@@ -101,6 +102,7 @@ let jsyoyojs = async (bot: Telegraf, ctx: any, obj: Opt = {}) => {
       if (!firstlistener)
         return
       firstlistener = false
+      let connt = 0;
       ctxemitter.on('ctx', async (ctxx: any) => {
         console.log('yes')
         ctxx.deleteMessage().catch(() => { })
@@ -113,7 +115,9 @@ let jsyoyojs = async (bot: Telegraf, ctx: any, obj: Opt = {}) => {
           console.log(ctxx.message.text)
           await node.stdin.write(ctxx.message.text + "\n")
 
-          node.stdin.end()
+          connt++;
+          if(connt >= countpp)
+            node.stdin.end()
 
         } catch (err: any) { console.log(err) }
 
@@ -153,7 +157,7 @@ let jsyoyojs = async (bot: Telegraf, ctx: any, obj: Opt = {}) => {
         ctx.scene.leave()
       }
     }, ttl * 1000)
-
+    countpp = countp(code)
     node = spawn(config.node, ['-e', code], {
       stdio: ['pipe', 'pipe', 'pipe'],
       uid: 1000,
@@ -294,4 +298,24 @@ let terminate = async (slow: any = true) => {
   }
   await h.sleep(500)
   return
+}
+
+// Define an array of patterns to match
+const patterns = [
+  /input\([^)]*\)/g,
+  /prompt\([^)]*\)/g,
+  /readline\([^)]*\)/g,
+  /question\([^)]*\)/g,
+];
+
+function countp(inputString: any) {
+  if (typeof inputString !== 'string') {
+    console.error('Input is not a string');
+    return 0;
+  }
+  const matches: any = patterns.reduce((totalMatches, pattern) => {
+    const patternMatches: any = inputString.match(pattern);
+    return totalMatches.concat(patternMatches || []);
+  }, []);
+  return matches.length;
 }
