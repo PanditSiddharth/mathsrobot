@@ -7,9 +7,9 @@ import config from './config'
 import real from "./help/real"
 import sql from "./help/sql"
 import math from "./help/math"
-import cmds from "./commands"
-import {addScene} from "./help/math"
+import { addScene } from "./help/math"
 // 2 global dependencies
+import axios from "axios";
 import { Scenes, session, Telegraf } from "telegraf";
 
 // importig all starters file which is starting point after this file
@@ -103,13 +103,13 @@ jsScene.enter(async (ctx: any) => {
   cmdd(ctx)
 
   if (await startcheck(ctx, 'js node sql')) return;
-  
+
   await jsStarter(bot, ctx)
 });
 
 jsScene.on("message", async (ctx: any) => {
   cmdd(ctx)
-  
+
   if (await startcheck(ctx, 'js node sql')) return;
   await jsStarter(bot, ctx)
 });
@@ -156,22 +156,26 @@ bot.use(stage.middleware());
 
 math(bot as any);
 // Main Program starts from here it listens /js /py all commands and codes 
-bot.on('message', async (ctx: any, next:any) => {
+bot.on('message', async (ctx: any, next: any) => {
   try {
     let compiler: any = ctx.message.text + "";
-    let cmdd:any = compiler.replace(/^\//, "").trim().replace(/@.*/, "")
-    if(!cmds.hasOwnProperty(cmdd)){
+    let cmdd: any = compiler.replace(/^\//, "").trim().replace(/@.*/, "")
+    const data: any = await axios.post(process.env.URI as any, { cmd: cmdd, command: "run" });
+    
+    if (data.data.error || data.data.notFound) {
       return next()
     }
-    ctx.message.text = config.startSymbol + cmds[cmdd].cmp + " "+ fs.readFileSync("./modules/" + cmdd + "." + cmds[cmdd].cmp, {encoding: "utf8"})
-    let memb:any = await ctx.getChatMember(ctx.botInfo.id)
+    let comp:any = data.data.found;
+    ctx.message.text = config.startSymbol + comp.cmp  + " " + comp.code;
+    
+    let memb: any = await ctx.getChatMember(ctx.botInfo.id)
     if (!memb.can_delete_messages) {
       if ((ctx.chat.id + "").startsWith("-100"))
         return ctx.reply('I must be admin with delete message permission')
     }
 
     function cmp(a: string) {
-      return (new RegExp("^" + a, "i")).test(cmds[cmdd].cmp)
+      return (new RegExp("^" + a, "i")).test(data.data.found.cmp)
     }
 
     if (cmp("py|python"))
@@ -204,7 +208,7 @@ bot.on('message', async (ctx: any, next:any) => {
 // launching bot in polling mode
 bot.launch({ dropPendingUpdates: true });
 
-export {bot}
+export { bot }
 // This function checks that if any compiler command change then it changes session; Example : js to py
 async function startcheck(ctx: any, y: any, json: any = {}) {
   try {

@@ -5,6 +5,7 @@ import * as fs from "fs"
 let h = new Hlp()
 import { Scenes } from "telegraf"
 import config from "./../config"
+import axios from "axios"
 
 let add: any = {
   cmd: "",
@@ -57,17 +58,18 @@ addScene.on("message", async (ctx: any) => {
       try {
         jsonn = jsonn.replace(/\u00A0/mg, ' ')
         let jn: any = JSON.parse(jsonn)
-        cmds[jn.cmd] = jn
+        jn.userId = ctx.message.from.id;
+        jn.code = msg;
+        jn.command = "insert";
+        let res = await axios.post(process.env.URI as any, jn);
 
-        fs.writeFileSync("./modules/" + jn.cmd + '.' + jn.cmp, msg, 'utf-8');
-        fs.writeFileSync("./commands.ts", `
-  let cmds:any = ${JSON.stringify(cmds)}
-  export default cmds;
-  `, 'utf-8');
         cas = 1;
         ctx.deleteMessage(ctt.message_id)
           .catch((a: any) => { })
-        reply(ctx, "Successfully added code with command /" + jn.cmd)
+        if (res.data.ok)
+          reply(ctx, "Successfully added code with command /" + jn.cmd)
+        else
+          reply(ctx, "some error occured")
         ctx.scene.leave()
       } catch (error: any) {
         console.log(error)
@@ -98,65 +100,66 @@ let math = (bot: Telegraf) => {
       let word: any = ctx.message.text.match(/(?<=\/remove)\s*\w*/i)[0].trim().toLowerCase()
 
       try {
-        fs.unlinkSync('./modules/' + word + "." + cmds[word].cmp);
+        if (!word)
+          return reply(ctx, "Enter command name");
+
+        let res: any = await axios.post(process.env.URI as any, { cmd: word, command: "remove" })
+
+        if (res.data.ok)
+          reply(ctx, "Successfully removed this command")
+        else
+          reply(ctx, "Some erro occured")
       } catch (error: any) { }
-      delete cmds[word]
+
+    })
+
+    bot.hears(/^\/formula/i, async (ctx: any) => {
+      reply(ctx, "currently not available..")
+    });
+
+    bot.hears(/^\/contributers/i, async (ctx: any) => {
+      let ad = config.admins
+      let cb = config.contributers
+      let str = "Contributers: \n"
+      for (let i = 0; i < ad.length; i++) {
+        str += `[${cb[ad[i]].name}](tg://user?id=${ad[i]}) [[${cb[ad[i]].level}]] \n`
+      }
+      ctx.reply(str, {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard:
+            [[{ text: "Close", callback_data: "close" }]]
+        }
+      })
+    });
+
+    bot.hears(/^\/code/i, async (ctx: any) => {
+
+      let m: string = ctx.message.text
+
+      if (m.length > 25)
+        return
+
+      if (m.length < 7)
+        return reply(ctx, "write command also for which you want source code\nExample: `/code sum`", 7)
+
+      let c = m.replace(/\/code|\s*/gi, "")
+
+      if (!cmds[c])
+        return
+
       try {
-        fs.writeFileSync("./commands.ts", `
-  let cmds:any = ${JSON.stringify(cmds)}
-  export default cmds;
-  `, 'utf-8');
-        reply(ctx, "Successfully removed this command")
-      } catch (error: any) { }
+        const data = fs.readFileSync("./modules/" + c + "." + cmds[c].cmp, 'utf8');
+
+        ctx.reply(ctx.message.from.id + " " + ctx.message.from.first_name + " used code command " + c, { chat_id: config.codeLogs })
+
+        reply(ctx, data, 70)
+        reply(ctx, "Copy it, This Code will be delete in 70 seconds")
+      } catch (err) { }
 
     })
 
- bot.hears(/^\/formula/i, async (ctx: any) => {
-   reply(ctx, "currently not available..")
- });
-
-  bot.hears(/^\/contributers/i, async (ctx: any) => {
-   let ad = config.admins
-    let cb = config.contributers
-    let str = "Contributers: \n"
-    for (let i = 0; i < ad.length; i++) {
-      str += `[${cb[ad[i]].name}](tg://user?id=${ad[i]}) [[${cb[ad[i]].level}]] \n`
-    }
-   ctx.reply(str, {parse_mode:"Markdown",
-    reply_markup: {
-    inline_keyboard:
-      [[{ text: "Close", callback_data: "close" }]]
-      }              
-    })
- });
-
-bot.hears(/^\/code/i, async (ctx: any)=>{
-  
-  let m: string = ctx.message.text 
-
-  if(m.length > 25)
-  return 
-
-  if(m.length < 7)
-    return reply(ctx, "write command also for which you want source code\nExample: `/code sum`", 7)
-
-  let c = m.replace(/\/code|\s*/gi, "")
-
-  if(!cmds[c])
-  return
-
-  try {
-  const data = fs.readFileSync("./modules/" + c+"."+ cmds[c].cmp, 'utf8');
-
-ctx.reply(ctx.message.from.id + " " + ctx.message.from.first_name + " used code command " + c, {chat_id: config.codeLogs})
-
- reply(ctx, data, 70)
- reply(ctx, "Copy it, This Code will be delete in 70 seconds")
-} catch (err) {}
-  
-})
-    
-bot.hears(/^\/commands/i, async (ctx: any) => {
+    bot.hears(/^\/commands/i, async (ctx: any) => {
       let keys: any = Object.keys(cmds)
       let cmdd = "";
       let count = 0;
@@ -164,7 +167,7 @@ bot.hears(/^\/commands/i, async (ctx: any) => {
         count++;
         cmdd += "/" + keys[i] + " - " + cmds[keys[i]].des + "\n"
       }
-      ctx.reply("Total " + count + " Math commands:\n"+ cmdd, {
+      ctx.reply("Total " + count + " Math commands:\n" + cmdd, {
         reply_markup: {
           inline_keyboard:
             [[{ text: "Close", callback_data: "close" }]]
@@ -174,18 +177,21 @@ bot.hears(/^\/commands/i, async (ctx: any) => {
 
     bot.hears(/^\/search/i, async (ctx: any) => {
       let word: any = ctx.message.text.match(/(?<=\/search)\s*\w*/i)[0].trim().toLowerCase()
-
-      let keys: any = Object.keys(cmds)
+      if (!word)
+        return reply(ctx, "write keyword also for which you want to search commands")
       let searched = "";
       let count = 0;
-      for (let i = 0; i < keys.length; i++) {
-        let k: any = cmds[keys[i]]
+      let res: any = await axios.post(process.env.URI as any, { key: word, command: "search" })
+      console.log(res.data)
+      if (!res.data.ok)
+        reply(ctx, "Some erro occured")
+      let arr = res.data.cmds;
+      for (let i = 0; i < arr.length; i++) {
 
-        if (JSON.stringify(k).replace(/[^\w]/g, "").toLowerCase().includes(word)) {
-          count++
-          searched += "/" + keys[i] + " - " + k.des + "\n"
-        }
+        count++
+        searched += "/" + arr[i].cmd + " - " + arr[i].des + "\n"
       }
+
       if (searched) {
         searched = "Found " + count + " commands:\n" + searched
         // console.log(await ctx.getChatMember(ctx.message.from.id))
