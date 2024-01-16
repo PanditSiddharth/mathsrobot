@@ -206,7 +206,7 @@ bot.on('message', async (ctx: any, next: any) => {
 })
 
 // launching bot in polling mode
-bot.launch({ dropPendingUpdates: true });
+bot.launch({ dropPendingUpdates: true }).catch((err:any)=>{console.log(err.message)});
 
 export { bot }
 // This function checks that if any compiler command change then it changes session; Example : js to py
